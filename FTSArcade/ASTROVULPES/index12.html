@@ -1,0 +1,1558 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-CMD3SE4RJC"></script>
+    <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+
+    gtag('config', 'G-CMD3SE4RJC');
+    </script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>ASTROVULPIS | Reticle Chase Refactor</title>
+
+     <!-- ── Primary Meta ─────────────────────────────────────────────────────── -->
+    <meta name="description" content="Astro Vulpis — 3rd person space shooter." />
+
+    <!-- ── Favicons ─────────────────────────────────────────────────────────── -->
+    <link rel="icon" type="image/png" href="../fts-favicon.png">
+    <link rel="shortcut icon" type="image/png" href="../fts-favicon.png">
+    <link rel="apple-touch-icon" href="fts-favicon.png">
+
+    <!-- ── Open Graph (Facebook, Discord, iMessage, etc.) ────────────────────── -->
+    <meta property="og:title" content="FishTacoStand Arcade">
+    <meta property="og:description" content="Astro Vulpis — 3rd person space shooter.">
+    <meta property="og:url" content="https://frymatic.us/FTSArcade/ASTROVULPIS">
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="Astro Vulpis">
+
+    <meta property="og:image" content="https://frymatic.us/FTSArcade/ASTROVULPIS/starfox_preview.png">
+    <meta property="og:image:alt" content="3D 3rd Person Spacefighter.">
+    <meta property="og:image:type" content="image/png">
+
+    <!-- ── Twitter / X Card ─────────────────────────────────────────────────── -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Astro Vulpis">
+    <meta name="twitter:description" content="3rd person space shooter.">
+    <meta name="twitter:image" content="https://frymatic.us/FTSArcade/ASTROVULPIS/starfox_preview.png">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght:400;700;900&family=Rajdhani:wght@300;500;700&display=swap');
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        :root {
+            --neon-cyan: #00ffff;
+            --neon-magenta: #ff00ff;
+            --neon-yellow: #ffff00;
+            --deep-space: #0a0015;
+            --space-purple: #1a0033;
+            --warning-red: #ff0055;
+        }
+        
+        body {
+            font-family: 'Rajdhani', sans-serif;
+            background: var(--deep-space);
+            overflow: hidden;
+            cursor: crosshair;
+            touch-action: none;
+        }
+        
+        body.mobile {
+            cursor: none;
+        }
+        
+        #gameCanvas {
+            display: block;
+            width: 100vw;
+            height: 100vh;
+            background: radial-gradient(ellipse at center, var(--space-purple) 0%, var(--deep-space) 100%);
+        }
+        
+        #hud {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 10;
+        }
+        
+        .hud-corner {
+            position: absolute;
+            width: 80px;
+            height: 80px;
+            border: 2px solid var(--neon-cyan);
+            opacity: 0.6;
+        }
+        
+        .hud-corner.tl { top: 20px; left: 20px; border-right: none; border-bottom: none; }
+        .hud-corner.tr { top: 20px; right: 20px; border-left: none; border-bottom: none; }
+        .hud-corner.bl { bottom: 20px; left: 20px; border-right: none; border-top: none; }
+        .hud-corner.br { bottom: 20px; right: 20px; border-left: none; border-top: none; }
+        
+        #stats {
+            position: absolute;
+            top: 30px;
+            left: 110px;
+            font-family: 'Orbitron', monospace;
+            color: var(--neon-cyan);
+            text-shadow: 0 0 10px var(--neon-cyan);
+        }
+        
+        .stat-line {
+            display: flex;
+            align-items: center;
+            margin-bottom: 8px;
+            font-size: 18px;
+            letter-spacing: 2px;
+        }
+        
+        .stat-label {
+            font-weight: 700;
+            margin-right: 12px;
+            min-width: 100px;
+        }
+        
+        .stat-value {
+            font-weight: 900;
+            font-size: 24px;
+            color: var(--neon-yellow);
+            text-shadow: 0 0 15px var(--neon-yellow);
+        }
+        
+        /* Speed indicator */
+        #speedMeter {
+            position: absolute;
+            top: 30px;
+            right: 110px;
+            font-family: 'Orbitron', monospace;
+            text-align: right;
+        }
+        
+        .speed-label {
+            font-size: 14px;
+            color: var(--neon-cyan);
+            letter-spacing: 2px;
+            margin-bottom: 4px;
+        }
+        
+        .speed-value {
+            font-size: 32px;
+            font-weight: 900;
+            color: var(--neon-magenta);
+            text-shadow: 0 0 20px var(--neon-magenta);
+            letter-spacing: 3px;
+        }
+        
+        .speed-bar {
+            width: 200px;
+            height: 8px;
+            background: rgba(0, 255, 255, 0.2);
+            border: 1px solid var(--neon-cyan);
+            margin-top: 8px;
+            overflow: hidden;
+        }
+        
+        .speed-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--neon-cyan), var(--neon-magenta), var(--neon-yellow));
+            box-shadow: 0 0 15px var(--neon-magenta);
+            transition: width 0.1s ease;
+        }
+        
+        #health-bar {
+            position: absolute;
+            bottom: 40px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 400px;
+            height: 30px;
+            border: 2px solid var(--neon-cyan);
+            background: rgba(0, 0, 0, 0.5);
+            overflow: hidden;
+        }
+        
+        #health-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--neon-cyan), var(--neon-magenta));
+            box-shadow: 0 0 20px var(--neon-cyan);
+            transition: width 0.3s ease, background 0.3s ease;
+        }
+        
+        #health-fill.low {
+            background: linear-gradient(90deg, var(--warning-red), #ff6600);
+            box-shadow: 0 0 20px var(--warning-red);
+            animation: pulse-health 0.5s infinite;
+        }
+        
+        @keyframes pulse-health {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.6; }
+        }
+        
+        #title {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            font-family: 'Orbitron', monospace;
+            color: var(--neon-cyan);
+            pointer-events: all;
+        }
+        
+        #title h1 {
+            font-size: 72px;
+            font-weight: 900;
+            letter-spacing: 8px;
+            text-shadow: 0 0 30px var(--neon-cyan), 0 0 60px var(--neon-magenta);
+            margin-bottom: 30px;
+            animation: flicker 3s infinite;
+        }
+        
+        @keyframes flicker {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.95; }
+            51% { opacity: 1; }
+            52% { opacity: 0.98; }
+        }
+        
+        #title p {
+            font-size: 18px;
+            letter-spacing: 3px;
+            color: var(--neon-magenta);
+            margin-bottom: 8px;
+            line-height: 1.6;
+        }
+        
+        #startBtn {
+            margin-top: 30px;
+            padding: 15px 50px;
+            font-family: 'Orbitron', monospace;
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--deep-space);
+            background: linear-gradient(135deg, var(--neon-cyan), var(--neon-magenta));
+            border: none;
+            cursor: pointer;
+            letter-spacing: 4px;
+            text-transform: uppercase;
+            transition: all 0.3s ease;
+            box-shadow: 0 0 30px var(--neon-cyan);
+        }
+        
+        #startBtn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 50px var(--neon-magenta);
+        }
+        
+        #gameOver {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            font-family: 'Orbitron', monospace;
+            color: var(--neon-cyan);
+            display: none;
+            pointer-events: all;
+        }
+        
+        #gameOver h2 {
+            font-size: 64px;
+            font-weight: 900;
+            letter-spacing: 6px;
+            text-shadow: 0 0 30px var(--warning-red);
+            color: var(--warning-red);
+            margin-bottom: 20px;
+        }
+        
+        #gameOver .final-score {
+            font-size: 32px;
+            color: var(--neon-yellow);
+            margin-bottom: 30px;
+        }
+        
+        #restartBtn {
+            padding: 12px 40px;
+            font-family: 'Orbitron', monospace;
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--deep-space);
+            background: linear-gradient(135deg, var(--neon-yellow), var(--neon-magenta));
+            border: none;
+            cursor: pointer;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            box-shadow: 0 0 30px var(--neon-yellow);
+        }
+        
+        .scanlines {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: repeating-linear-gradient(
+                0deg,
+                rgba(0, 255, 255, 0.03) 0px,
+                transparent 1px,
+                transparent 2px,
+                rgba(0, 255, 255, 0.03) 3px
+            );
+            pointer-events: none;
+            z-index: 100;
+            opacity: 0.3;
+        }
+        
+        /* Aim reticle — desktop follows pointer; mobile follows the right thumbstick. */
+        #centerReticle {
+            position: fixed;
+            width: 40px;
+            height: 40px;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+            z-index: 60;
+            display: none;
+            opacity: 0.72;
+            will-change: left, top;
+        }
+        
+        body.playing #centerReticle {
+            display: block;
+        }
+        
+        #centerReticle::before,
+        #centerReticle::after {
+            content: '';
+            position: absolute;
+            background: var(--neon-yellow);
+            box-shadow: 0 0 8px var(--neon-yellow);
+        }
+        
+        #centerReticle::before {
+            width: 2px;
+            height: 60%;
+            left: 50%;
+            top: 20%;
+            transform: translateX(-50%);
+        }
+        
+        #centerReticle::after {
+            height: 2px;
+            width: 60%;
+            top: 50%;
+            left: 20%;
+            transform: translateY(-50%);
+        }
+        
+        .reticle-ring {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            border: 2px solid var(--neon-yellow);
+            border-radius: 50%;
+            opacity: 0.6;
+            animation: pulse-reticle 2s infinite;
+        }
+        
+        @keyframes pulse-reticle {
+            0%, 100% { transform: scale(1); opacity: 0.6; }
+            50% { transform: scale(1.1); opacity: 0.8; }
+        }
+        
+        /* Mobile adaptations */
+        body.mobile.portrait .hud-corner {
+            display: none;
+        }
+        
+        body.mobile.portrait #stats {
+            top: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            text-align: center;
+        }
+        
+        body.mobile.portrait #speedMeter {
+            top: 160px;
+            left: 50%;
+            right: auto;
+            transform: translateX(-50%);
+            text-align: center;
+        }
+        
+        body.mobile.portrait .stat-line {
+            justify-content: center;
+        }
+        
+        body.mobile.portrait #health-bar {
+            width: 80%;
+            max-width: 350px;
+            bottom: auto;
+            top: 20px;
+        }
+        
+        body.mobile.portrait #title h1 {
+            font-size: 48px;
+        }
+        
+        body.mobile.portrait #title p {
+            font-size: 14px;
+        }
+        
+        body.mobile.landscape #stats {
+            top: 20px;
+            left: 20px;
+            font-size: 14px;
+        }
+        
+        body.mobile.landscape .stat-line {
+            margin-bottom: 4px;
+        }
+        
+        body.mobile.landscape .stat-value {
+            font-size: 18px;
+        }
+        
+        body.mobile.landscape #speedMeter {
+            top: 20px;
+            right: 20px;
+            font-size: 12px;
+        }
+        
+        body.mobile.landscape .speed-value {
+            font-size: 24px;
+        }
+        
+        body.mobile.landscape .speed-bar {
+            width: 150px;
+        }
+        
+        body.mobile.landscape #health-bar {
+            width: 300px;
+            height: 20px;
+            bottom: 20px;
+        }
+        
+        body.mobile.landscape .hud-corner {
+            width: 50px;
+            height: 50px;
+        }
+
+        /* Mobile right-side aim thumbstick. Left-side touch remains ship positioning. */
+        #mobileControls {
+            position: fixed;
+            inset: 0;
+            z-index: 80;
+            pointer-events: none;
+            display: none;
+        }
+
+        body.mobile.playing #mobileControls { display: block; }
+
+        #aimStick {
+            position: absolute;
+            right: max(22px, env(safe-area-inset-right));
+            bottom: max(30px, calc(env(safe-area-inset-bottom) + 18px));
+            width: 132px;
+            height: 132px;
+            border-radius: 50%;
+            border: 1px solid rgba(0, 255, 255, 0.58);
+            background: radial-gradient(circle, rgba(0,255,255,0.06) 0 42%, rgba(0,0,0,0.22) 43% 100%);
+            box-shadow: inset 0 0 26px rgba(0,255,255,0.10), 0 0 18px rgba(0,255,255,0.08);
+            pointer-events: auto;
+            touch-action: none;
+        }
+
+        #aimStick::after {
+            content: 'AIM';
+            position: absolute;
+            left: 50%;
+            top: -22px;
+            transform: translateX(-50%);
+            font-family: 'Orbitron', monospace;
+            font-size: 10px;
+            letter-spacing: 2px;
+            color: rgba(0,255,255,0.72);
+        }
+
+        #aimKnob {
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            width: 54px;
+            height: 54px;
+            margin-left: -27px;
+            margin-top: -27px;
+            border-radius: 50%;
+            border: 2px solid var(--neon-yellow);
+            background: rgba(255,255,0,0.08);
+            box-shadow: 0 0 16px rgba(255,255,0,0.28);
+            transform: translate(0px, 0px);
+            will-change: transform;
+        }
+
+        body.mobile.portrait #aimStick {
+            width: 116px;
+            height: 116px;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="gameCanvas"></canvas>
+    
+    <div class="scanlines"></div>
+    
+    <div id="centerReticle">
+        <div class="reticle-ring"></div>
+    </div>
+
+    <div id="mobileControls" aria-hidden="true">
+        <div id="aimStick">
+            <div id="aimKnob"></div>
+        </div>
+    </div>
+    
+    <div id="hud">
+        <div class="hud-corner tl"></div>
+        <div class="hud-corner tr"></div>
+        <div class="hud-corner bl"></div>
+        <div class="hud-corner br"></div>
+        
+        <div id="stats">
+            <div class="stat-line">
+                <span class="stat-label">SCORE</span>
+                <span class="stat-value" id="score">0</span>
+            </div>
+            <div class="stat-line">
+                <span class="stat-label">COMBO</span>
+                <span class="stat-value" id="combo">×1</span>
+            </div>
+            <div class="stat-line">
+                <span class="stat-label">WAVE</span>
+                <span class="stat-value" id="wave">1</span>
+            </div>
+        </div>
+        
+        <div id="speedMeter">
+            <div class="speed-label">VELOCITY</div>
+            <div class="speed-value" id="speedValue">1.0×</div>
+            <div class="speed-bar">
+                <div class="speed-fill" id="speedFill" style="width: 50%;"></div>
+            </div>
+        </div>
+        
+        <div id="health-bar">
+            <div id="health-fill" style="width: 100%;"></div>
+        </div>
+        
+        <div id="title">
+            <h1>VECTOR SQUADRON</h1>
+            <p id="controlsText">MOUSE: AIM & POSITION</p>
+            <p>W: BOOST • S: BRAKE • A/D: STRAFE</p>
+            <p>CLICK: FIRE</p>
+            <button id="startBtn">ENGAGE</button>
+        </div>
+        
+        <div id="gameOver">
+            <h2>MISSION FAILED</h2>
+            <div class="final-score">FINAL SCORE: <span id="finalScore">0</span></div>
+            <button id="restartBtn">RETRY</button>
+        </div>
+    </div>
+
+    <!-- Astro Vulpis refactor: foreground Dopeship scale + reticle-converged aim pose -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+    <script>
+        // Mobile Detection
+        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || 
+                        ('ontouchstart' in window);
+        
+        let currentOrientation = 'landscape';
+        
+        function detectOrientation() {
+            const isPortrait = window.innerHeight > window.innerWidth;
+            currentOrientation = isPortrait ? 'portrait' : 'landscape';
+            document.body.classList.remove('portrait', 'landscape');
+            document.body.classList.add(currentOrientation);
+        }
+        
+        if (isMobile) {
+            document.body.classList.add('mobile');
+            detectOrientation();
+            document.getElementById('controlsText').textContent = 'LEFT DRAG: POSITION • RIGHT STICK: AIM / FIRE';
+        }
+        
+        window.addEventListener('resize', detectOrientation);
+        window.addEventListener('orientationchange', detectOrientation);
+        
+        // Keyboard State
+        const keys = { w: false, a: false, s: false, d: false };
+        
+        document.addEventListener('keydown', (e) => {
+            const key = e.key.toLowerCase();
+            if (key in keys) keys[key] = true;
+            if (key === ' ') e.preventDefault();
+        });
+        
+        document.addEventListener('keyup', (e) => {
+            const key = e.key.toLowerCase();
+            if (key in keys) keys[key] = false;
+        });
+        
+        // Advanced Flight Physics Engine
+        const flightPhysics = {
+            velocity: new THREE.Vector3(0, 0, 0),
+            targetRoll: 0,
+            targetPitch: 0,
+            targetYaw: 0,
+            boostFactor: 1.0,
+            baseFov: 75,
+            targetFov: 75,
+            stiffness: 0.12,      // How aggressively ship chases cursor
+            damping: 0.78,        // Resistance to prevent rubber-banding
+            currentSpeed: 0       // For UI display
+        };
+        
+        // Input State
+        const input = {
+            // Ship attractor / movement target
+            moveScreenX: window.innerWidth / 2,
+            moveScreenY: window.innerHeight / 2,
+            moveNormalizedX: 0,
+            moveNormalizedY: 0,
+            moveActive: false,
+
+            // Weapon aim target. Desktop = pointer position. Mobile = right thumbstick.
+            aimScreenX: window.innerWidth / 2,
+            aimScreenY: window.innerHeight / 2,
+            aimNormalizedX: 0,
+            aimNormalizedY: 0,
+            aimActive: false,
+            firing: false,
+
+            moveTouchId: null,
+            aimPointerId: null
+        };
+        
+        // Game State
+        const gameState = {
+            playing: false,
+            score: 0,
+            health: 100,
+            wave: 1,
+            combo: 1,
+            comboTimer: 0,
+            kills: 0
+        };
+        
+        // Scene Setup
+        const scene = new THREE.Scene();
+        scene.fog = new THREE.Fog(0x0a0015, 50, 200);
+        
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.set(0, 10, 9.4);  // Tight 3rd-person chase framing
+        camera.lookAt(0, 7.65, -18);  // Ship sits low in frame with deep forward visibility
+        
+        const renderer = new THREE.WebGLRenderer({ 
+            canvas: document.getElementById('gameCanvas'),
+            antialias: true,
+            alpha: true
+        });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.shadowMap.enabled = true;
+        renderer.outputEncoding = THREE.sRGBEncoding;
+        renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        renderer.toneMappingExposure = 1.45;
+        
+        // Lighting
+        const ambientLight = new THREE.AmbientLight(0xffffff, 1.15);
+        scene.add(ambientLight);
+        
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 2.2);
+        directionalLight.position.set(-4, 10, 8);
+        directionalLight.castShadow = true;
+        scene.add(directionalLight);
+        
+        const pointLight1 = new THREE.PointLight(0xff44ff, 1.6, 70);
+        pointLight1.position.set(-10, 5, -10);
+        scene.add(pointLight1);
+        
+        const pointLight2 = new THREE.PointLight(0x33ddff, 1.8, 70);
+        pointLight2.position.set(10, 5, -10);
+        scene.add(pointLight2);
+
+        // Camera-side fill so the player craft remains readable from the chase view.
+        const playerFillLight = new THREE.DirectionalLight(0xbfd7ff, 1.35);
+        playerFillLight.position.set(0, 3, 10);
+        scene.add(playerFillLight);
+        
+        // Player Ship - GLB-backed 3rd person craft
+        let player = null;
+        let playerModelLoaded = false;
+
+        const shipConfig = {
+            url: './dopeship.glb',
+            // Reference framing: the player craft should read as a major foreground object,
+            // roughly 40-50% of the landscape viewport width rather than a tiny marker.
+            targetSize: 8.6,
+            // The GLB is authored with its nose along +X. Rotate -90deg so the nose points into game-space -Z.
+            yaw: -Math.PI / 2,
+            engineZ: 4.65,        // Scaled with the larger foreground presentation
+            engineY: -0.10,
+            muzzleOffset: 3.25,
+            aimDepth: 90
+        };
+
+        function fitShipModel(model) {
+            model.rotation.set(0, shipConfig.yaw, 0);
+            model.updateMatrixWorld(true);
+
+            // Normalize arbitrary Blender/export scale into game-world scale.
+            let box = new THREE.Box3().setFromObject(model);
+            const size = new THREE.Vector3();
+            box.getSize(size);
+            const longestSide = Math.max(size.x, size.y, size.z) || 1;
+            const scale = shipConfig.targetSize / longestSide;
+            model.scale.setScalar(scale);
+            model.updateMatrixWorld(true);
+
+            // Re-center the authored pivot so flight physics rotate around the actual ship.
+            box = new THREE.Box3().setFromObject(model);
+            const center = new THREE.Vector3();
+            box.getCenter(center);
+            model.position.sub(center);
+            model.updateMatrixWorld(true);
+
+            console.log('Dopeship normalized:', {
+                sourceSize: size.toArray(),
+                scale,
+                targetSize: shipConfig.targetSize
+            });
+        }
+
+        function prepareShipMaterials(model) {
+            model.traverse((child) => {
+                if (!child.isMesh) return;
+
+                child.castShadow = true;
+                child.receiveShadow = true;
+
+                const materials = Array.isArray(child.material) ? child.material : [child.material];
+                materials.filter(Boolean).forEach((material) => {
+                    // Preserve the GLB's authored PBR, normal and emissive textures.
+                    // Only tune presentation properties that do not destroy texture data.
+                    if ('emissiveIntensity' in material) {
+                        material.emissiveIntensity = Math.max(material.emissiveIntensity || 1, 1.35);
+                    }
+                    // Preserve authored PBR balance. The old pass forced extra metalness,
+                    // which made the hull read almost black against the space background.
+                    if ('roughness' in material) {
+                        material.roughness = Math.max(0.28, Math.min(material.roughness ?? 0.5, 0.62));
+                    }
+                    if ('envMapIntensity' in material) {
+                        material.envMapIntensity = Math.max(material.envMapIntensity || 1, 1.2);
+                    }
+                    material.needsUpdate = true;
+                });
+            });
+        }
+
+        function createEngineTrail() {
+            const trailGroup = new THREE.Group();
+            trailGroup.position.set(0, shipConfig.engineY, shipConfig.engineZ);
+
+            const coreGeometry = new THREE.ConeGeometry(0.36, 3.0, 12, 1, true);
+            const coreMaterial = new THREE.MeshBasicMaterial({
+                color: 0xffffff,
+                transparent: true,
+                opacity: 0.82,
+                depthWrite: false,
+                blending: THREE.AdditiveBlending
+            });
+            const core = new THREE.Mesh(coreGeometry, coreMaterial);
+            core.rotation.x = Math.PI / 2; // plume extends toward +Z, behind the ship
+            core.position.z = 1.25;
+            trailGroup.add(core);
+
+            const glowGeometry = new THREE.ConeGeometry(0.78, 4.7, 16, 1, true);
+            const glowMaterial = new THREE.MeshBasicMaterial({
+                color: 0x00ffff,
+                transparent: true,
+                opacity: 0.28,
+                depthWrite: false,
+                blending: THREE.AdditiveBlending
+            });
+            const glow = new THREE.Mesh(glowGeometry, glowMaterial);
+            glow.rotation.x = Math.PI / 2;
+            glow.position.z = 1.95;
+            trailGroup.add(glow);
+
+            trailGroup.userData.core = core;
+            trailGroup.userData.glow = glow;
+            return trailGroup;
+        }
+
+        function createPlayerShip() {
+            const group = new THREE.Group();
+            group.position.y = 6.5;
+
+            const visualRoot = new THREE.Group();
+            visualRoot.name = 'DopeshipVisualRoot';
+            group.add(visualRoot);
+
+            const engineTrail = createEngineTrail();
+            engineTrail.name = 'DopeshipEngineTrail';
+            group.add(engineTrail);
+            group.userData.engineTrail = engineTrail;
+
+            const loader = new THREE.GLTFLoader();
+            loader.load(
+                shipConfig.url,
+                (gltf) => {
+                    const model = gltf.scene;
+                    model.name = 'DopeshipGLB';
+                    prepareShipMaterials(model);
+                    fitShipModel(model);
+                    visualRoot.add(model);
+                    playerModelLoaded = true;
+                    console.log('Dopeship loaded and flying');
+                },
+                (progress) => {
+                    if (progress.total > 0) {
+                        console.log('Loading dopeship:', (progress.loaded / progress.total * 100).toFixed(0) + '%');
+                    }
+                },
+                (error) => {
+                    console.error('Error loading dopeship.glb:', error);
+                    console.log('Falling back to geometric ship');
+                    createFallbackShip(visualRoot);
+                }
+            );
+
+            return group;
+        }
+
+        // Fallback only if dopeship.glb cannot be fetched/decoded.
+        function createFallbackShip(group) {
+            const bodyGeometry = new THREE.ConeGeometry(0.8, 3, 4);
+            const bodyMaterial = new THREE.MeshPhongMaterial({
+                color: 0x00ffff,
+                emissive: 0x00ffff,
+                emissiveIntensity: 0.5,
+                flatShading: true,
+                shininess: 100
+            });
+            const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
+            body.rotation.x = Math.PI / 2;
+            group.add(body);
+
+            const wingGeometry = new THREE.BoxGeometry(3, 0.1, 1);
+            const wingMaterial = new THREE.MeshPhongMaterial({
+                color: 0xff00ff,
+                emissive: 0xff00ff,
+                emissiveIntensity: 0.4,
+                flatShading: true,
+                shininess: 100
+            });
+            const wing = new THREE.Mesh(wingGeometry, wingMaterial);
+            wing.position.z = -0.5;
+            group.add(wing);
+
+            playerModelLoaded = true;
+        }
+
+        player = createPlayerShip();
+        scene.add(player);
+
+        // Enemy Ship
+        function createEnemyShip() {
+            const group = new THREE.Group();
+            
+            const bodyGeometry = new THREE.OctahedronGeometry(0.8, 0);
+            const bodyMaterial = new THREE.MeshPhongMaterial({ 
+                color: 0xff0055,
+                emissive: 0xff0055,
+                emissiveIntensity: 0.3,
+                flatShading: true
+            });
+            const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
+            group.add(body);
+            
+            return group;
+        }
+        
+        // Projectile
+        function createProjectile(color = 0xffff00) {
+            const geometry = new THREE.SphereGeometry(0.2, 8, 8);
+            const material = new THREE.MeshBasicMaterial({ color });
+            const projectile = new THREE.Mesh(geometry, material);
+            
+            const glowGeometry = new THREE.SphereGeometry(0.4, 8, 8);
+            const glowMaterial = new THREE.MeshBasicMaterial({ 
+                color,
+                transparent: true,
+                opacity: 0.3
+            });
+            const glow = new THREE.Mesh(glowGeometry, glowMaterial);
+            projectile.add(glow);
+            
+            return projectile;
+        }
+        
+        // Particle System
+        function createExplosion(position, color = 0xff00ff) {
+            const particleCount = 20;
+            const particles = [];
+            
+            for (let i = 0; i < particleCount; i++) {
+                const geometry = new THREE.SphereGeometry(0.1, 4, 4);
+                const material = new THREE.MeshBasicMaterial({ color });
+                const particle = new THREE.Mesh(geometry, material);
+                
+                particle.position.copy(position);
+                particle.velocity = new THREE.Vector3(
+                    (Math.random() - 0.5) * 2,
+                    (Math.random() - 0.5) * 2,
+                    (Math.random() - 0.5) * 2
+                );
+                particle.life = 1.0;
+                
+                scene.add(particle);
+                particles.push(particle);
+            }
+            
+            return particles;
+        }
+        
+        // Layered Star Field — sparse depth cues instead of one flat wallpaper.
+        function createStarLayer(count, spread, zOffset, size, opacity) {
+            const geometry = new THREE.BufferGeometry();
+            const positions = new Float32Array(count * 3);
+            for (let i = 0; i < count; i++) {
+                const j = i * 3;
+                positions[j] = (Math.random() - 0.5) * spread;
+                positions[j + 1] = (Math.random() - 0.5) * spread;
+                positions[j + 2] = (Math.random() - 0.5) * spread - zOffset;
+            }
+            geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+            const material = new THREE.PointsMaterial({
+                color: 0xffffff,
+                size,
+                transparent: true,
+                opacity,
+                depthWrite: false
+            });
+            const points = new THREE.Points(geometry, material);
+            scene.add(points);
+            return points;
+        }
+
+        const starLayers = [
+            { points: createStarLayer(650, 360, 170, 0.20, 0.45), speed: 0.06, wrapNear: 70, wrapFar: -290 },
+            { points: createStarLayer(450, 240, 115, 0.30, 0.68), speed: 0.18, wrapNear: 65, wrapFar: -190 },
+            { points: createStarLayer(220, 150, 75, 0.42, 0.82), speed: 0.38, wrapNear: 55, wrapFar: -120 }
+        ];
+
+        // Sparse foreground motes that become visible with velocity/boost.
+        function createVelocityDust() {
+            const count = 90;
+            const geometry = new THREE.BufferGeometry();
+            const positions = new Float32Array(count * 3);
+            for (let i = 0; i < count; i++) {
+                const j = i * 3;
+                positions[j] = (Math.random() - 0.5) * 38;
+                positions[j + 1] = (Math.random() - 0.5) * 26 + 6;
+                positions[j + 2] = -Math.random() * 95;
+            }
+            geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+            const material = new THREE.PointsMaterial({
+                color: 0x9fe9ff,
+                size: 0.16,
+                transparent: true,
+                opacity: 0.0,
+                depthWrite: false,
+                blending: THREE.AdditiveBlending
+            });
+            const dust = new THREE.Points(geometry, material);
+            scene.add(dust);
+            return dust;
+        }
+
+        const velocityDust = createVelocityDust();
+
+        // Game Arrays
+        const enemies = [];
+        const projectiles = [];
+        const particles = [];
+        
+        // Spawn Enemy
+        function spawnEnemy() {
+            const enemy = createEnemyShip();
+            enemy.position.set(
+                (Math.random() - 0.5) * 20,
+                Math.random() * 10 + 2,
+                -60
+            );
+            enemy.velocity = new THREE.Vector3(
+                (Math.random() - 0.5) * 0.1,
+                0,
+                Math.random() * 0.2 + 0.3
+            );
+            enemy.health = 1;
+            scene.add(enemy);
+            enemies.push(enemy);
+        }
+        
+        // Reticle aiming is solved in world space so both the ship nose and its
+        // projectiles converge on the same point represented by the 2D HUD reticle.
+        let shootCooldown = 0;
+        const aimNdc = new THREE.Vector2();
+        const aimWorld = new THREE.Vector3();
+        const aimRayDirection = new THREE.Vector3();
+        const aimTargetWorld = new THREE.Vector3();
+        const aimDirectionWorld = new THREE.Vector3();
+        const shipForward = new THREE.Vector3(0, 0, -1);
+        const shipAimQuaternion = new THREE.Quaternion();
+        const shipBankQuaternion = new THREE.Quaternion();
+        const shipTargetQuaternion = new THREE.Quaternion();
+
+        function getAimTargetWorld() {
+            aimNdc.set(input.aimNormalizedX, input.aimNormalizedY);
+            aimWorld.set(aimNdc.x, aimNdc.y, 0.5).unproject(camera);
+            aimRayDirection.copy(aimWorld).sub(camera.position).normalize();
+
+            // Intersect the camera ray with a deep gameplay plane. This removes the
+            // chase-camera parallax error that made shots only approximately match the reticle.
+            const targetZ = player.position.z - shipConfig.aimDepth;
+            let distanceAlongRay = (targetZ - camera.position.z) / aimRayDirection.z;
+            if (!Number.isFinite(distanceAlongRay) || distanceAlongRay <= 0) {
+                distanceAlongRay = shipConfig.aimDepth;
+            }
+
+            return aimTargetWorld.copy(camera.position).addScaledVector(aimRayDirection, distanceAlongRay);
+        }
+
+        function getAimDirection() {
+            return aimDirectionWorld.copy(getAimTargetWorld()).sub(player.position).normalize();
+        }
+
+        function shoot() {
+            if (shootCooldown > 0) return;
+
+            const projectile = createProjectile(0xffff00);
+            const direction = getAimDirection();
+            projectile.position.copy(player.position).addScaledVector(direction, shipConfig.muzzleOffset);
+            projectile.velocity.copy(direction).multiplyScalar(2.4);
+            scene.add(projectile);
+            projectiles.push(projectile);
+
+            shootCooldown = 8;
+
+            if (isMobile && window.vibrate) {
+                window.vibrate(10);
+            }
+        }
+        
+        // Update HUD
+        function updateHUD() {
+            document.getElementById('score').textContent = gameState.score;
+            document.getElementById('combo').textContent = `×${gameState.combo}`;
+            document.getElementById('wave').textContent = gameState.wave;
+            
+            // Speed display
+            const speedPercent = Math.min(100, (flightPhysics.currentSpeed / 2.5) * 100);
+            document.getElementById('speedValue').textContent = flightPhysics.boostFactor.toFixed(1) + '×';
+            document.getElementById('speedFill').style.width = speedPercent + '%';
+            
+            const healthPercent = Math.max(0, gameState.health);
+            const healthFill = document.getElementById('health-fill');
+            healthFill.style.width = healthPercent + '%';
+            
+            if (healthPercent < 30) {
+                healthFill.classList.add('low');
+            } else {
+                healthFill.classList.remove('low');
+            }
+        }
+        
+        // Screen Shake
+        let shakeAmount = 0;
+        function shake(amount) {
+            shakeAmount = Math.max(shakeAmount, amount);
+        }
+        
+        // Input Handlers
+        const reticleEl = document.getElementById('centerReticle');
+        const aimStickEl = document.getElementById('aimStick');
+        const aimKnobEl = document.getElementById('aimKnob');
+
+        function setMoveInput(clientX, clientY) {
+            input.moveScreenX = clientX;
+            input.moveScreenY = clientY;
+            input.moveNormalizedX = (clientX / window.innerWidth) * 2 - 1;
+            input.moveNormalizedY = -((clientY / window.innerHeight) * 2 - 1);
+            input.moveActive = true;
+        }
+
+        function setAimFromScreen(clientX, clientY) {
+            input.aimScreenX = Math.max(0, Math.min(window.innerWidth, clientX));
+            input.aimScreenY = Math.max(0, Math.min(window.innerHeight, clientY));
+            input.aimNormalizedX = (input.aimScreenX / window.innerWidth) * 2 - 1;
+            input.aimNormalizedY = -((input.aimScreenY / window.innerHeight) * 2 - 1);
+            input.aimActive = true;
+            updateReticlePosition();
+        }
+
+        function setAimFromStick(nx, ny) {
+            input.aimNormalizedX = Math.max(-1, Math.min(1, nx));
+            input.aimNormalizedY = Math.max(-1, Math.min(1, ny));
+            // Keep a little safe margin so the reticle remains visible on phones.
+            input.aimScreenX = window.innerWidth * (0.5 + input.aimNormalizedX * 0.42);
+            input.aimScreenY = window.innerHeight * (0.5 - input.aimNormalizedY * 0.38);
+            input.aimActive = true;
+            updateReticlePosition();
+        }
+
+        function updateReticlePosition() {
+            reticleEl.style.left = input.aimScreenX + 'px';
+            reticleEl.style.top = input.aimScreenY + 'px';
+        }
+
+        function centerAim() {
+            input.aimScreenX = window.innerWidth / 2;
+            input.aimScreenY = window.innerHeight / 2;
+            input.aimNormalizedX = 0;
+            input.aimNormalizedY = 0;
+            input.aimActive = false;
+            updateReticlePosition();
+        }
+
+        document.addEventListener('mousemove', (e) => {
+            if (!gameState.playing || isMobile) return;
+            setMoveInput(e.clientX, e.clientY);
+            setAimFromScreen(e.clientX, e.clientY);
+        });
+
+        document.addEventListener('mousedown', () => {
+            if (!gameState.playing || isMobile) return;
+            input.firing = true;
+        });
+
+        document.addEventListener('mouseup', () => {
+            if (!isMobile) input.firing = false;
+        });
+
+        // Mobile: left half drags ship position. Right thumbstick aims and fires.
+        document.addEventListener('touchstart', (e) => {
+            if (!gameState.playing || !isMobile) return;
+            for (const touch of e.changedTouches) {
+                if (touch.clientX < window.innerWidth * 0.58 && input.moveTouchId === null) {
+                    input.moveTouchId = touch.identifier;
+                    setMoveInput(touch.clientX, touch.clientY);
+                }
+            }
+        }, { passive: false });
+
+        document.addEventListener('touchmove', (e) => {
+            if (!gameState.playing || !isMobile) return;
+            for (const touch of e.changedTouches) {
+                if (touch.identifier === input.moveTouchId) {
+                    e.preventDefault();
+                    setMoveInput(touch.clientX, touch.clientY);
+                }
+            }
+        }, { passive: false });
+
+        document.addEventListener('touchend', (e) => {
+            if (!isMobile) return;
+            for (const touch of e.changedTouches) {
+                if (touch.identifier === input.moveTouchId) {
+                    input.moveTouchId = null;
+                    input.moveActive = false;
+                }
+            }
+        }, { passive: false });
+
+        function updateAimStickFromPointer(e) {
+            const rect = aimStickEl.getBoundingClientRect();
+            const cx = rect.left + rect.width / 2;
+            const cy = rect.top + rect.height / 2;
+            const radius = rect.width * 0.34;
+            let dx = e.clientX - cx;
+            let dy = e.clientY - cy;
+            const len = Math.hypot(dx, dy) || 1;
+            if (len > radius) {
+                dx = dx / len * radius;
+                dy = dy / len * radius;
+            }
+            aimKnobEl.style.transform = `translate(${dx}px, ${dy}px)`;
+            setAimFromStick(dx / radius, -dy / radius);
+        }
+
+        aimStickEl.addEventListener('pointerdown', (e) => {
+            if (!gameState.playing || !isMobile) return;
+            e.preventDefault();
+            input.aimPointerId = e.pointerId;
+            aimStickEl.setPointerCapture(e.pointerId);
+            input.firing = true;
+            updateAimStickFromPointer(e);
+        });
+
+        aimStickEl.addEventListener('pointermove', (e) => {
+            if (e.pointerId !== input.aimPointerId) return;
+            e.preventDefault();
+            updateAimStickFromPointer(e);
+        });
+
+        function releaseAimStick(e) {
+            if (input.aimPointerId !== null && e.pointerId !== input.aimPointerId) return;
+            input.aimPointerId = null;
+            input.firing = false;
+            aimKnobEl.style.transform = 'translate(0px, 0px)';
+            centerAim();
+        }
+
+        aimStickEl.addEventListener('pointerup', releaseAimStick);
+        aimStickEl.addEventListener('pointercancel', releaseAimStick);
+
+        // Game Loop
+        let enemySpawnTimer = 0;
+        const enemySpawnInterval = 60;
+        
+        function gameLoop() {
+            if (!gameState.playing) return;
+            
+            // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            // ADVANCED FLIGHT DYNAMICS WITH SPRING PHYSICS
+            // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            
+            // 1. Calculate Cursor Attractor Force (Spring Physics)
+            const targetX = input.moveActive ? input.moveNormalizedX * 12 : 0;
+            const targetY = input.moveActive ? (input.moveNormalizedY * 6 + 6.5) : 6.5;
+            
+            const distX = targetX - player.position.x;
+            const distY = targetY - player.position.y;
+            
+            // Base spring acceleration forces
+            let accelX = distX * flightPhysics.stiffness;
+            let accelY = distY * flightPhysics.stiffness;
+            
+            // 2. Process WASD Kinetic Overrides
+            flightPhysics.boostFactor = 1.0;
+            flightPhysics.targetFov = flightPhysics.baseFov;
+            
+            // W: Thruster Hyper-Boost
+            if (keys.w) {
+                flightPhysics.boostFactor = 2.2;
+                flightPhysics.targetFov = 95;  // Extreme warp speed effect
+                accelY += 0.04;                // Slight forward lift
+            }
+            // S: Airbrakes / Controlled Drift
+            if (keys.s) {
+                flightPhysics.boostFactor = 0.3;
+                flightPhysics.targetFov = 64;  // Heavy zoom-in focus
+                accelY -= 0.04;
+            }
+            // A/D: Heavy Lateral Jet-Slips
+            if (keys.a) accelX -= 0.18;
+            if (keys.d) accelX += 0.18;
+            
+            // 3. Apply Forces to Velocity & Damping (Inertia)
+            flightPhysics.velocity.x += accelX;
+            flightPhysics.velocity.y += accelY;
+            
+            flightPhysics.velocity.x *= flightPhysics.damping;
+            flightPhysics.velocity.y *= flightPhysics.damping;
+            
+            // 4. Update Position
+            player.position.x += flightPhysics.velocity.x;
+            player.position.y += flightPhysics.velocity.y;
+            
+            // Boundaries
+            player.position.x = Math.max(-13, Math.min(13, player.position.x));
+            player.position.y = Math.max(1, Math.min(13, player.position.y));
+            
+            // 5. Aim the entire craft at the reticle, then layer kinetic banking
+            // around its local forward axis. Movement remains spring-driven in screen space;
+            // pose now communicates exactly where the weapons are pointed.
+            const aimDirection = getAimDirection();
+            flightPhysics.targetRoll = THREE.MathUtils.clamp(-flightPhysics.velocity.x * 0.16, -0.52, 0.52);
+            if (keys.a) flightPhysics.targetRoll += 0.10;
+            if (keys.d) flightPhysics.targetRoll -= 0.10;
+
+            shipAimQuaternion.setFromUnitVectors(shipForward, aimDirection);
+            shipBankQuaternion.setFromAxisAngle(shipForward, flightPhysics.targetRoll);
+            shipTargetQuaternion.copy(shipAimQuaternion).multiply(shipBankQuaternion);
+            player.quaternion.slerp(shipTargetQuaternion, isMobile ? 0.20 : 0.24);
+            
+            // 6. Camera FOV Lens Warping
+            if (Math.abs(camera.fov - flightPhysics.targetFov) > 0.1) {
+                camera.fov += (flightPhysics.targetFov - camera.fov) * 0.12;
+                camera.updateProjectionMatrix();
+            }
+            
+            // Calculate current speed for UI
+            flightPhysics.currentSpeed = Math.sqrt(
+                flightPhysics.velocity.x * flightPhysics.velocity.x +
+                flightPhysics.velocity.y * flightPhysics.velocity.y
+            ) * flightPhysics.boostFactor;
+
+            // Engine plume breathes with throttle/boost without affecting flight physics.
+            const engineTrail = player.userData.engineTrail;
+            if (engineTrail) {
+                const pulse = 1 + Math.sin(performance.now() * 0.025) * 0.06;
+                const thrust = 0.82 + flightPhysics.boostFactor * 0.35;
+                engineTrail.scale.set(pulse, pulse, thrust);
+                engineTrail.userData.core.material.opacity = Math.min(1, 0.62 + flightPhysics.boostFactor * 0.13);
+                engineTrail.userData.glow.material.opacity = Math.min(0.55, 0.18 + flightPhysics.boostFactor * 0.09);
+            }
+            
+            // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            
+            // Shooting
+            if (input.firing) shoot();
+            if (shootCooldown > 0) shootCooldown--;
+            
+            // Spawn Enemies
+            enemySpawnTimer++;
+            if (enemySpawnTimer > enemySpawnInterval) {
+                const count = Math.min(Math.floor(gameState.wave / 2) + 1, 3);
+                for (let i = 0; i < count; i++) {
+                    spawnEnemy();
+                }
+                enemySpawnTimer = 0;
+            }
+            
+            // Update Projectiles
+            for (let i = projectiles.length - 1; i >= 0; i--) {
+                const proj = projectiles[i];
+                proj.position.add(proj.velocity);
+                
+                if (proj.position.z < -70 || proj.position.z > 30) {
+                    scene.remove(proj);
+                    projectiles.splice(i, 1);
+                }
+            }
+            
+            // Update Enemies
+            for (let i = enemies.length - 1; i >= 0; i--) {
+                const enemy = enemies[i];
+                enemy.position.add(enemy.velocity);
+                enemy.rotation.y += 0.05;
+                
+                const distToPlayer = enemy.position.distanceTo(player.position);
+                if (distToPlayer < 2) {
+                    gameState.health -= 10;
+                    shake(0.5);
+                    createExplosion(enemy.position, 0xff0055);
+                    scene.remove(enemy);
+                    enemies.splice(i, 1);
+                    gameState.combo = 1;
+                    
+                    if (isMobile && window.vibrate) {
+                        window.vibrate(50);
+                    }
+                    continue;
+                }
+                
+                if (enemy.position.z > 30) {
+                    scene.remove(enemy);
+                    enemies.splice(i, 1);
+                    gameState.combo = 1;
+                }
+            }
+            
+            // Collision Detection
+            for (let i = projectiles.length - 1; i >= 0; i--) {
+                const proj = projectiles[i];
+                
+                for (let j = enemies.length - 1; j >= 0; j--) {
+                    const enemy = enemies[j];
+                    const dist = proj.position.distanceTo(enemy.position);
+                    
+                    if (dist < 1.2) {
+                        enemy.health--;
+                        
+                        if (enemy.health <= 0) {
+                            gameState.score += 100 * gameState.combo;
+                            gameState.kills++;
+                            gameState.combo = Math.min(gameState.combo + 1, 10);
+                            gameState.comboTimer = 180;
+                            
+                            createExplosion(enemy.position, 0x00ffff);
+                            scene.remove(enemy);
+                            enemies.splice(j, 1);
+                            
+                            if (isMobile && window.vibrate) {
+                                window.vibrate(20);
+                            }
+                            
+                            if (gameState.kills % 10 === 0) {
+                                gameState.wave++;
+                            }
+                        }
+                        
+                        scene.remove(proj);
+                        projectiles.splice(i, 1);
+                        shake(0.2);
+                        break;
+                    }
+                }
+            }
+            
+            // Combo Timer
+            if (gameState.comboTimer > 0) {
+                gameState.comboTimer--;
+            } else if (gameState.combo > 1) {
+                gameState.combo = Math.max(1, gameState.combo - 1);
+            }
+            
+            // Update Particles
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const particle = particles[i];
+                particle.position.add(particle.velocity);
+                particle.life -= 0.05;
+                particle.material.opacity = particle.life;
+                
+                if (particle.life <= 0) {
+                    scene.remove(particle);
+                    particles.splice(i, 1);
+                }
+            }
+            
+            // Layered parallax: distant stars barely move; near stars reveal speed.
+            for (const layer of starLayers) {
+                const pos = layer.points.geometry.attributes.position.array;
+                const dz = layer.speed * flightPhysics.boostFactor;
+                for (let i = 2; i < pos.length; i += 3) {
+                    pos[i] += dz;
+                    if (pos[i] > layer.wrapNear) pos[i] = layer.wrapFar;
+                }
+                layer.points.geometry.attributes.position.needsUpdate = true;
+            }
+
+            const dustPositions = velocityDust.geometry.attributes.position.array;
+            const dustSpeed = 0.65 + flightPhysics.boostFactor * 1.2;
+            for (let i = 2; i < dustPositions.length; i += 3) {
+                dustPositions[i] += dustSpeed;
+                if (dustPositions[i] > 18) dustPositions[i] = -95 - Math.random() * 20;
+            }
+            velocityDust.geometry.attributes.position.needsUpdate = true;
+            velocityDust.material.opacity = Math.max(0, Math.min(0.48, (flightPhysics.boostFactor - 0.75) * 0.32));
+            velocityDust.material.size = 0.12 + flightPhysics.boostFactor * 0.07;
+            
+            // Camera Follow with Shake - tight chase framing inspired by the reference:
+            // large foreground ship, low in frame, with plenty of world visible beyond the nose.
+            const portraitChase = isMobile && currentOrientation === 'portrait';
+            const targetCamX = player.position.x * (portraitChase ? 0.62 : 0.52);
+            const targetCamY = player.position.y + (portraitChase ? 5.4 : 3.5);
+            const targetCamZ = player.position.z + (portraitChase ? 12.2 : 9.4);
+            const cameraEase = portraitChase ? 0.12 : 0.14;
+            
+            camera.position.x += (targetCamX - camera.position.x) * cameraEase;
+            camera.position.y += (targetCamY - camera.position.y) * cameraEase;
+            camera.position.z += (targetCamZ - camera.position.z) * cameraEase;
+            
+            if (shakeAmount > 0) {
+                camera.position.x += (Math.random() - 0.5) * shakeAmount;
+                camera.position.y += (Math.random() - 0.5) * shakeAmount;
+                shakeAmount *= 0.9;
+            }
+            
+            const lookAheadZ = player.position.z - (portraitChase ? 21 : 18);
+            const lookLift = portraitChase ? 1.5 : 1.15;
+            camera.lookAt(player.position.x, player.position.y + lookLift, lookAheadZ);
+            
+            // Update HUD
+            updateHUD();
+            
+            // Game Over
+            if (gameState.health <= 0) {
+                endGame();
+            }
+            
+            renderer.render(scene, camera);
+        }
+        
+        function startGame() {
+            gameState.playing = true;
+            gameState.score = 0;
+            gameState.health = 100;
+            gameState.wave = 1;
+            gameState.combo = 1;
+            gameState.kills = 0;
+            
+            enemies.forEach(e => scene.remove(e));
+            enemies.length = 0;
+            projectiles.forEach(p => scene.remove(p));
+            projectiles.length = 0;
+            particles.forEach(p => scene.remove(p));
+            particles.length = 0;
+            
+            player.position.set(0, 6.5, 0);
+            player.quaternion.identity();
+            flightPhysics.velocity.set(0, 0, 0);
+            flightPhysics.boostFactor = 1.0;
+            flightPhysics.targetFov = flightPhysics.baseFov;
+            camera.fov = flightPhysics.baseFov;
+            camera.updateProjectionMatrix();
+            
+            input.moveScreenX = window.innerWidth / 2;
+            input.moveScreenY = window.innerHeight / 2;
+            input.moveNormalizedX = 0;
+            input.moveNormalizedY = 0;
+            input.moveActive = !isMobile;
+            input.moveTouchId = null;
+            input.firing = false;
+            input.aimPointerId = null;
+            aimKnobEl.style.transform = 'translate(0px, 0px)';
+            centerAim();
+            
+            document.getElementById('title').style.display = 'none';
+            document.getElementById('gameOver').style.display = 'none';
+            document.body.classList.add('playing');
+            
+            detectOrientation();
+            updateHUD();
+            animate();
+        }
+        
+        function endGame() {
+            gameState.playing = false;
+            document.body.classList.remove('playing');
+            document.getElementById('finalScore').textContent = gameState.score;
+            document.getElementById('gameOver').style.display = 'block';
+        }
+        
+        function animate() {
+            if (!gameState.playing) return;
+            requestAnimationFrame(animate);
+            gameLoop();
+        }
+        
+        document.getElementById('startBtn').addEventListener('click', startGame);
+        document.getElementById('restartBtn').addEventListener('click', startGame);
+        
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            if (!input.aimActive) centerAim();
+        });
+        
+        renderer.render(scene, camera);
+    </script>
+</body>
+</html>
